@@ -67,8 +67,8 @@ def update_student_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-    
-@app.delete("/students/{id}", status_code=204)
+
+@app.delete("/students/{id}", status_code=200)
 def delete_student_endpoint(id: str = Path(..., description="Student ID")):
     try:
         success = delete_student(id)
