@@ -1,7 +1,6 @@
-# schemas.py
 from pydantic import BaseModel
 from typing import List
-from .models import StudentInResponse
+from .models import StudentResponse
 
 class StudentListResponse(BaseModel):
-    data: List[StudentInResponse]
+    data: List[StudentResponse]

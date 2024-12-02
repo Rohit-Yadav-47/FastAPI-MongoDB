@@ -1,7 +1,6 @@
-from pydantic import BaseModel, Field, ConfigDict, GetCoreSchemaHandler
-from typing import Optional, Annotated
+from typing import Optional, List
+from pydantic import BaseModel, Field
 from bson import ObjectId
-from typing import Any
 from pydantic_core import core_schema
 
 class PyObjectId(ObjectId):
@@ -9,17 +8,13 @@ class PyObjectId(ObjectId):
     def validate(cls, v):
         if not isinstance(v, (str, ObjectId)):
             raise ValueError("Invalid ObjectId")
-        
-        if isinstance(v, str):
-            v = ObjectId(v)
-        
-        return v
+        return ObjectId(v) if isinstance(v, str) else v
 
     @classmethod
     def __get_pydantic_core_schema__(
         cls, 
-        source_type: Any, 
-        handler: GetCoreSchemaHandler
+        source_type: any, 
+        handler: any
     ):
         return core_schema.json_or_python_schema(
             json_schema=core_schema.str_schema(),
@@ -34,35 +29,28 @@ class PyObjectId(ObjectId):
         )
 
 class Address(BaseModel):
-    city: str
-    country: str
+    city: str = Field(..., min_length=1, max_length=100)
+    country: str = Field(..., min_length=1, max_length=100)
 
 class StudentCreate(BaseModel):
-    name: str
-    age: int
+    name: str = Field(..., min_length=2, max_length=100)
+    age: int = Field(..., gt=0, le=150)
     address: Address
 
 class StudentUpdate(BaseModel):
-    name: Optional[str] = None
-    age: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    age: Optional[int] = Field(None, gt=0, le=150)
     address: Optional[Address] = None
 
-class StudentInResponse(BaseModel):
-    id: Annotated[PyObjectId, Field(alias="_id")]
+class StudentCreateResponse(BaseModel):
+    id: str
+
+class StudentResponse(BaseModel):
     name: str
     age: int
-    address: Address
 
-    model_config = ConfigDict(
-        json_schema_extra={'example': {
-            "id": "507f1f77bcf86cd799439011",
-            "name": "John Doe",
-            "age": 25,
-            "address": {
-                "city": "New York",
-                "country": "USA"
-            }
-        }},
-        populate_by_name=True,
-        arbitrary_types_allowed=True
-    )
+class StudentDetailResponse(StudentResponse):
+    address: Optional[Address] = None
+
+class StudentListResponse(BaseModel):
+    data: List[StudentResponse]

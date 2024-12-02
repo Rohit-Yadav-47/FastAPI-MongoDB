@@ -1,7 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Path, Query, Body
 from fastapi.responses import JSONResponse
-from app.models import StudentCreate, StudentUpdate
-from app.schemas import StudentListResponse
+from typing import Optional, List
+
+from app.models import (
+    StudentCreate, 
+    StudentUpdate, 
+    StudentCreateResponse, 
+    StudentListResponse, 
+    StudentDetailResponse
+)
 from app.crud import (
     create_student, 
     get_students, 
@@ -9,60 +16,64 @@ from app.crud import (
     update_student, 
     delete_student
 )
-from typing import Optional
-from pymongo.errors import PyMongoError
 
-app = FastAPI()
+app = FastAPI(
+    title="Backend Intern Hiring Task",
+    version="1.0.0",
+    description="Student Management API"
+)
 
-@app.exception_handler(PyMongoError)
-async def mongodb_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=500,
-        content={"message": "Internal database error"}
-    )
-
-@app.post("/students", status_code=201)
-async def create_student_api(student: StudentCreate):
+@app.post("/students", status_code=201, response_model=StudentCreateResponse)
+def create_student_endpoint(student: StudentCreate):
     try:
-        created_student = create_student(student)
-        return created_student
+        student_id = create_student(student)
+        return {"id": student_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/students", response_model=StudentListResponse)
-async def list_students(country: Optional[str] = None, age: Optional[int] = None):
+def list_students(
+    country: Optional[str] = Query(None, description="Filter by country"),
+    age: Optional[int] = Query(None, description="Minimum age filter")
+):
     try:
         students = get_students(country, age)
-        return StudentListResponse(data=students)
+        return {"data": students}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/students/{student_id}")
-async def fetch_student(student_id: str):
+@app.get("/students/{id}", response_model=StudentDetailResponse)
+def fetch_student(id: str = Path(..., description="Student ID")):
     try:
-        student = get_student_by_id(student_id)
-        if student:
-            return student
-        raise HTTPException(status_code=404, detail="Student not found")
+        student = get_student_by_id(id)
+        if student is None:
+            raise HTTPException(status_code=404, detail="Student not found")
+        return student
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.patch("/students/{student_id}")
-async def update_student_api(student_id: str, student_update: StudentUpdate):
+@app.patch("/students/{id}", status_code=204)
+def update_student_endpoint(
+    id: str = Path(..., description="Student ID"),
+    student_update: StudentUpdate = Body(...)
+):
     try:
-        success = update_student(student_id, student_update)
+        success = update_student(id, student_update)
         if not success:
             raise HTTPException(status_code=404, detail="Student not found")
-        return {"message": "Student updated successfully"}
+        return JSONResponse(status_code=204, content={})
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid student ID")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/students/{student_id}")
-async def delete_student_api(student_id: str):
+    
+    
+@app.delete("/students/{id}", status_code=204)
+def delete_student_endpoint(id: str = Path(..., description="Student ID")):
     try:
-        success = delete_student(student_id)
+        success = delete_student(id)
         if not success:
             raise HTTPException(status_code=404, detail="Student not found")
-        return {"message": "Student deleted successfully"}
+        return {}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
